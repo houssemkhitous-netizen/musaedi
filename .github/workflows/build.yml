@@ -2,7 +2,7 @@ name: Build APK
 
 on:
   push:
-    branches: [musaedi]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -37,8 +37,8 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: musaedi-v1.${{ github.run_number }}
+          tag_name: v1.${{ github.run_number }}
           target_commitish: ${{ github.sha }}
           name: مساعدي v1.${{ github.run_number }}
           files: musaedi.apk
-          make_latest: false
+          make_latest: true
