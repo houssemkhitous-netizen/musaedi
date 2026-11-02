@@ -259,7 +259,8 @@ class AgentService : AccessibilityService() {
         val p = getSharedPreferences("cfg", Context.MODE_PRIVATE)
         val key = p.getString("key", "")!!.trim()
         var model = p.getString("model", MainActivity.DEFAULT_MODEL)!!.trim().ifEmpty { MainActivity.DEFAULT_MODEL }
-        if (model == "gemini-flash-latest") model = MainActivity.DEFAULT_MODEL
+        if (model == "gemini-2.5-flash") model = MainActivity.DEFAULT_MODEL
+        Gemini.workingModel = null
         val profile = p.getString("profile", "")!!
         if (key.isEmpty()) {
             running = false
@@ -334,6 +335,9 @@ class AgentService : AccessibilityService() {
             setStatus("⚠️ ${e.message}")
             expand(true)
         } finally {
+            Gemini.workingModel?.let { wm2 ->
+                if (wm2 != model) p.edit().putString("model", wm2).apply()
+            }
             running = false
             waitingAnswer = false
             setConfirm(false)

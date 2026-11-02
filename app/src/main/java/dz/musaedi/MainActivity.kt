@@ -22,7 +22,7 @@ import android.widget.Toast
 class MainActivity : Activity() {
 
     companion object {
-        const val DEFAULT_MODEL = "gemini-2.5-flash"
+        const val DEFAULT_MODEL = "gemini-flash-latest"
     }
 
     private lateinit var state: TextView
@@ -68,7 +68,7 @@ class MainActivity : Activity() {
             open("https://aistudio.google.com/apikey")
         })
         modelIn = input(DEFAULT_MODEL, single = true)
-        col.addView(small("النموذج (اتركه كما هو):"))
+        col.addView(small("النموذج (اتركه كما هو، يختار التطبيق المتاح تلقائيًا):"))
         col.addView(modelIn)
 
         // 2) معلوماتي
@@ -103,12 +103,12 @@ class MainActivity : Activity() {
 
         val p = prefs()
         keyIn.setText(p.getString("key", ""))
-        modelIn.setText(p.getString("model", DEFAULT_MODEL).let { if (it.isNullOrBlank() || it == "gemini-flash-latest") DEFAULT_MODEL else it })
         profileIn.setText(p.getString("profile", ""))
     }
 
     override fun onResume() {
         super.onResume()
+        modelIn.setText(prefs().getString("model", DEFAULT_MODEL).let { if (it.isNullOrBlank() || it == "gemini-2.5-flash") DEFAULT_MODEL else it })
         if (AgentService.instance != null) {
             state.text = "✅ المساعد مفعّل — ستجد الزر 🤖 فوق كل التطبيقات"
             state.setTextColor(acc)
