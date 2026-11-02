@@ -15,6 +15,11 @@ Choose exactly ONE next action and reply with ONE JSON object only, no other tex
  "app": "<app name for open_app>",
  "message": "<Arabic message for confirm / ask / done>"}
 
+Speed: to save time you MAY instead return several actions at once for the CURRENT screen:
+{"thought": "...", "actions": [ {"action":"click","id":3}, {"action":"type","id":3,"text":"..."}, {"action":"enter","id":3} ]}
+(max 4; only when you are sure they all apply to this same screen; put confirm/ask/done alone or last).
+Prefer open_url shortcuts (search links, wa.me) over many clicks.
+
 How to act:
 - To switch to another app use open_app with its name from the installed apps list below (no need to go home first).
 - To type: use "type" with the id of the input field (flag edit). Then submit with "enter" or click the send/search button.

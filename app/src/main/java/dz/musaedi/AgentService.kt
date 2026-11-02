@@ -258,7 +258,8 @@ class AgentService : AccessibilityService() {
     private fun runAgent(goal: String) {
         val p = getSharedPreferences("cfg", Context.MODE_PRIVATE)
         val key = p.getString("key", "")!!.trim()
-        val model = p.getString("model", "gemini-flash-latest")!!.trim().ifEmpty { "gemini-flash-latest" }
+        var model = p.getString("model", MainActivity.DEFAULT_MODEL)!!.trim().ifEmpty { MainActivity.DEFAULT_MODEL }
+        if (model == "gemini-flash-latest") model = MainActivity.DEFAULT_MODEL
         val profile = p.getString("profile", "")!!
         if (key.isEmpty()) {
             running = false
@@ -273,8 +274,8 @@ class AgentService : AccessibilityService() {
         var finished = false
 
         try {
-            Thread.sleep(900)
-            for (step in 1..30) {
+            Thread.sleep(500)
+            loop@ for (step in 1..30) {
                 if (stopFlag) break
                 val screen = dumpScreen()
                 val prompt = buildString {
@@ -286,24 +287,44 @@ class AgentService : AccessibilityService() {
                 }
                 setStatus("($step) أفكّر...")
                 val raw = Gemini.ask(key, model, system, prompt)
-                val j = JSONObject(extractJson(raw))
-                val action = j.optString("action")
-                val thought = j.optString("thought")
+                val obj = JSONObject(extractJson(raw))
+                val thought = obj.optString("thought")
                 setStatus("($step) $thought")
 
-                val result = execute(action, j)
-                val idPart = j.optInt("id", -1).let { if (it >= 0) " #$it" else "" }
-                val extra = listOf(j.optString("text"), j.optString("app")).filter { it.isNotBlank() }.joinToString(" ")
-                hist.add("$action$idPart $extra → $result")
+                // يمكن أن يرجع عدة أفعال متتالية لنفس الشاشة (مثلًا: كتابة ثم إرسال)
+                val list = ArrayList<JSONObject>()
+                val arr = obj.optJSONArray("actions")
+                if (arr != null) {
+                    for (i in 0 until minOf(arr.length(), 4)) arr.optJSONObject(i)?.let { list.add(it) }
+                } else list.add(obj)
 
-                if (action == "done") {
-                    finished = true
-                    setStatus("✅ " + j.optString("message", thought))
-                    expand(true)
-                    break
+                var lastAction = ""
+                for ((i, j) in list.withIndex()) {
+                    if (stopFlag) break@loop
+                    val action = j.optString("action")
+                    lastAction = action
+                    val result = execute(action, j)
+                    val idPart = j.optInt("id", -1).let { if (it >= 0) " #$it" else "" }
+                    val extra = listOf(j.optString("text"), j.optString("app")).filter { it.isNotBlank() }.joinToString(" ")
+                    hist.add("$action$idPart $extra → $result")
+
+                    if (action == "done") {
+                        finished = true
+                        setStatus("✅ " + j.optString("message", obj.optString("message", thought)))
+                        expand(true)
+                        break@loop
+                    }
+                    if (result == "STOP") break@loop
+                    if (action == "confirm" || action == "ask") break
+                    if (i < list.size - 1) Thread.sleep(350)
                 }
-                if (result == "STOP") break
-                Thread.sleep(1400)
+                Thread.sleep(
+                    when (lastAction) {
+                        "open_app", "open_url" -> 1500L
+                        "type" -> 300L
+                        else -> 700L
+                    }
+                )
             }
             if (!finished && !stopFlag) {
                 setStatus("توقفت بعد عدد كبير من الخطوات. أعطني أمرًا أوضح أو أكمل أنت.")
@@ -355,7 +376,7 @@ class AgentService : AccessibilityService() {
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 "فُتح الرابط"
             } catch (e: Exception) { "فشل فتح الرابط" }
-            "wait" -> { Thread.sleep(2500); "انتظرت" }
+            "wait" -> { Thread.sleep(1500); "انتظرت" }
             "confirm", "ask" -> askUser(j.optString("message"), action == "confirm")
             "done" -> "انتهى"
             else -> "إجراء غير معروف: $action"
@@ -397,7 +418,7 @@ class AgentService : AccessibilityService() {
     }
 
     private fun walk(n: AccessibilityNodeInfo, sb: StringBuilder) {
-        if (nodes.size >= 220) return
+        if (nodes.size >= 160) return
         if (!n.isVisibleToUser) return
         val txt = n.text?.toString()?.trim()?.replace('\n', ' ').orEmpty()
         val desc = n.contentDescription?.toString()?.trim()?.replace('\n', ' ').orEmpty()

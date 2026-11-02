@@ -21,6 +21,10 @@ import android.widget.Toast
 
 class MainActivity : Activity() {
 
+    companion object {
+        const val DEFAULT_MODEL = "gemini-2.5-flash"
+    }
+
     private lateinit var state: TextView
     private lateinit var keyIn: EditText
     private lateinit var modelIn: EditText
@@ -63,7 +67,7 @@ class MainActivity : Activity() {
         col.addView(button("احصل على مفتاح مجاني", 0xFF3A4756.toInt()) {
             open("https://aistudio.google.com/apikey")
         })
-        modelIn = input("gemini-flash-latest", single = true)
+        modelIn = input(DEFAULT_MODEL, single = true)
         col.addView(small("النموذج (اتركه كما هو):"))
         col.addView(modelIn)
 
@@ -99,7 +103,7 @@ class MainActivity : Activity() {
 
         val p = prefs()
         keyIn.setText(p.getString("key", ""))
-        modelIn.setText(p.getString("model", "gemini-flash-latest"))
+        modelIn.setText(p.getString("model", DEFAULT_MODEL).let { if (it.isNullOrBlank() || it == "gemini-flash-latest") DEFAULT_MODEL else it })
         profileIn.setText(p.getString("profile", ""))
     }
 
@@ -124,7 +128,7 @@ class MainActivity : Activity() {
     private fun save() {
         prefs().edit()
             .putString("key", keyIn.text.toString().trim())
-            .putString("model", modelIn.text.toString().trim().ifEmpty { "gemini-flash-latest" })
+            .putString("model", modelIn.text.toString().trim().ifEmpty { DEFAULT_MODEL })
             .putString("profile", profileIn.text.toString().trim())
             .apply()
     }

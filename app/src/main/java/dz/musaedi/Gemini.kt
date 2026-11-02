@@ -8,6 +8,16 @@ import java.net.URL
 object Gemini {
 
     fun ask(key: String, model: String, system: String, user: String, json: Boolean = true): String {
+        return try {
+            call(key, model, system, user, json, fast = true)
+        } catch (e: ThinkingUnsupported) {
+            call(key, model, system, user, json, fast = false)
+        }
+    }
+
+    private class ThinkingUnsupported : Exception()
+
+    private fun call(key: String, model: String, system: String, user: String, json: Boolean, fast: Boolean): String {
         val url = URL("https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent")
         val c = url.openConnection() as HttpURLConnection
         c.requestMethod = "POST"
@@ -19,6 +29,8 @@ object Gemini {
 
         val gen = JSONObject().put("temperature", 0.2)
         if (json) gen.put("responseMimeType", "application/json")
+        // إيقاف «التفكير» الطويل لتسريع الرد
+        if (fast) gen.put("thinkingConfig", JSONObject().put("thinkingBudget", 0))
 
         val body = JSONObject()
             .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", system))))
@@ -43,6 +55,7 @@ object Gemini {
             } catch (e: Exception) {
                 txt.take(200)
             }
+            if (fast && code == 400 && msg.contains("thinking", true)) throw ThinkingUnsupported()
             throw Exception(friendly(code, msg))
         }
 
@@ -58,7 +71,7 @@ object Gemini {
     private fun friendly(code: Int, msg: String): String = when {
         code == 429 || msg.contains("quota", true) -> "وصلت للحد المجاني لـ Gemini. انتظر دقيقة ثم أعد المحاولة."
         msg.contains("API key", true) -> "مفتاح Gemini غير صحيح. صحّحه في التطبيق."
-        code == 404 -> "اسم النموذج غير موجود. جرّب gemini-2.5-flash في التطبيق."
+        code == 404 -> "اسم النموذج غير موجود. اكتب في خانة النموذج: gemini-flash-latest"
         else -> "خطأ $code: $msg"
     }
 }
